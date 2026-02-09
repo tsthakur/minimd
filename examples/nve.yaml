@@ -1,0 +1,16 @@
+xyz_file: lj_fcc.xyz
+
+ensemble: nve
+temperature: 1.0    # only used for initial velocity generation
+
+dt: 0.001
+n_steps: 100000
+log_every: 1000
+traj_every: 10000
+
+r_cut: 2.5
+r_skin: 0.3
+
+box: [5.129928, 5.129928, 5.129928]
+
+backend: numpy
