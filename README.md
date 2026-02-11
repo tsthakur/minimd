@@ -1,4 +1,4 @@
-A minimalist molecular dynamics (MD) code in Python. It simulates Lennard-Jones particles under periodic boundary conditions using velocity Verlet integration, with optional stochastic velocity rescaling (SVR) thermostat for NVT ensemble. All quantities are in LJ reduced units (sigma = epsilon = mass = kB = 1).
+A minimalist molecular dynamics (MD) code in Python. It simulates Lennard-Jones particles under periodic boundary conditions using velocity Verlet integration, with optional stochastic velocity rescaling (SVR) thermostat for NVT ensemble. All quantities are in LJ reduced units (mass = kB = 1).
 
 ```bash
 # Install (editable)
@@ -10,4 +10,9 @@ python -m minimd examples/nve.yaml
 minimd examples/nve.yaml
 ```
 
-The main draw of this code is that there are backends to test out various implementations (currently only supports python with numpy) for building neighbour list and force evaluation as these are the most computationally intensive part of any MD code. The dynamics is always done on python.
+The main draw of this code is that there are backends to test out various implementations for building neighbour list and force evaluation as these are the most computationally intensive part of any MD code. Currently supported:
+* python with base python functions
+* python with numpy
+* fortran 
+
+The dynamics is always done on python.

@@ -73,6 +73,55 @@ def _maxwell_boltzmann(
     return rng.standard_normal((n, 3)) * sigma[:, None]
 
 
+# ---------- supercell generation ----------
+
+def make_supercell(
+    state: SimState,
+    nx: int,
+    ny: int,
+    nz: int,
+) -> SimState:
+    """Replicate *state* by (nx, ny, nz) to build a supercell.
+
+    Positions are tiled along each axis and the box is scaled accordingly.
+    Velocities are tiled (each replica gets the same initial velocities).
+    Returns a new SimState; the original is not modified.
+    """
+    if nx == 1 and ny == 1 and nz == 1:
+        return state  # nothing to do
+
+    n_atoms = state.n_atoms
+    n_total = n_atoms * nx * ny * nz
+    box = state.box.copy()
+
+    new_positions = np.zeros((n_total, 3), dtype=np.float64)
+    new_velocities = np.zeros((n_total, 3), dtype=np.float64)
+    new_symbols: list[str] = []
+
+    idx = 0
+    for ix in range(nx):
+        for iy in range(ny):
+            for iz in range(nz):
+                shift = np.array([ix * box[0], iy * box[1], iz * box[2]])
+                new_positions[idx : idx + n_atoms] = state.positions + shift
+                new_symbols.extend(state.symbols)
+                idx += n_atoms
+
+    new_box = box * np.array([nx, ny, nz], dtype=np.float64)
+    new_masses = np.tile(state.masses, nx * ny * nz)
+    """When creating a supercell, provided original velcoties are not meaningful"""
+    new_velocities = _maxwell_boltzmann(n_total, new_masses, state.temperature)
+
+    return SimState(
+        symbols=new_symbols,
+        positions=new_positions,
+        velocities=new_velocities,
+        forces=np.zeros((n_total, 3), dtype=np.float64),
+        box=new_box,
+        masses=new_masses,
+    )
+
+
 # ---------- XYZ writing ----------
 
 def write_xyz_frame(
@@ -105,3 +154,10 @@ def write_log_line(f: TextIO, step: int, pe: float, ke: float, temp: float) -> N
     """Append one line to the log file."""
     e_tot = pe + ke
     f.write(f"{step:10d} {pe:14.6f} {ke:14.6f} {e_tot:14.6f} {temp:14.6f}\n")
+
+
+def write_log_timing(f: TextIO, total_time: float, avg_step_time: float) -> None:
+    """Write timing summary at the end of the log file."""
+    f.write(f"\n# Timing\n")
+    f.write(f"# Total wall time:     {total_time:.3f} s\n")
+    f.write(f"# Avg time per step:   {avg_step_time:.6f} s\n")

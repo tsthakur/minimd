@@ -54,7 +54,7 @@ class NumpyNeighborList(NeighborList):
 
 
 class NumpyLJForces(ForceEvaluator):
-    """Lennard-Jones 12-6 forces with shifted potential (sigma=epsilon=1)."""
+    """Lennard-Jones 12-6 forces with shifted potential with configurable sigma and epsilon."""
 
     def compute(
         self,
@@ -63,6 +63,8 @@ class NumpyLJForces(ForceEvaluator):
         pairs_i: NDArray[np.intp],
         pairs_j: NDArray[np.intp],
         r_cut: float,
+        sigma: float = 1.0,
+        epsilon: float = 1.0,
     ) -> tuple[NDArray[np.floating], float]:
         n = positions.shape[0]
         forces = np.zeros((n, 3), dtype=np.float64)
@@ -81,21 +83,22 @@ class NumpyLJForces(ForceEvaluator):
         pi = pairs_i[mask]
         pj = pairs_j[mask]
 
-        inv_r2 = 1.0 / dist_sq
+        sigma_sq = sigma * sigma
+        inv_r2 = sigma_sq / dist_sq
         inv_r6 = inv_r2 * inv_r2 * inv_r2
         inv_r12 = inv_r6 * inv_r6
 
         # shifted LJ potential: V(r) = 4*(1/r^12 - 1/r^6) - V(r_cut)
-        inv_rc2 = 1.0 / r_cut_sq
+        inv_rc2 = sigma_sq / r_cut_sq
         inv_rc6 = inv_rc2 * inv_rc2 * inv_rc2
         inv_rc12 = inv_rc6 * inv_rc6
         v_shift = 4.0 * (inv_rc12 - inv_rc6)
 
-        energy = float(np.sum(4.0 * (inv_r12 - inv_r6) - v_shift))
+        energy = float(epsilon * np.sum(4.0 * (inv_r12 - inv_r6) - v_shift))
 
-        # f_over_r = -dV/dr / r = 24*(2/r^14 - 1/r^8)
+        # f_over_r = -dV/dr / r = 24*eps/r^2 * [2*(sig/r)^12 - (sig/r)^6]
         # fij = f_over_r * dr points from i→j; force ON j is +fij, ON i is -fij
-        f_over_r = 24.0 * (2.0 * inv_r12 - inv_r6) * inv_r2
+        f_over_r = epsilon * 24.0 * (2.0 * inv_r12 - inv_r6) / dist_sq
         fij = f_over_r[:, None] * dr  # (n_pairs, 3)
 
         # Newton's third law: F_on_j = +fij, F_on_i = -fij

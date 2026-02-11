@@ -52,6 +52,8 @@ class ForceEvaluator(ABC):
         pairs_i: NDArray[np.intp],
         pairs_j: NDArray[np.intp],
         r_cut: float,
+        sigma: float = 1.0,
+        epsilon: float = 1.0,
     ) -> tuple[NDArray[np.floating], float]:
         """Compute forces and potential energy.
 
@@ -60,6 +62,8 @@ class ForceEvaluator(ABC):
             box: (3,) orthorhombic box lengths.
             pairs_i, pairs_j: neighbor pair indices from NeighborList.
             r_cut: cutoff radius (potential is shifted to zero at r_cut).
+            sigma: LJ size parameter.
+            epsilon: LJ well depth.
 
         Returns:
             forces: (N, 3) array.

@@ -13,7 +13,7 @@ class SimState:
     """Complete microstate of the system.
 
     All arrays are (N, 3) float64. Units are LJ reduced units throughout:
-    sigma = epsilon = mass = 1, so kB*T is in units of epsilon.
+    mass = kB = 1.
     """
 
     symbols: list[str]

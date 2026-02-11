@@ -1,2 +1,14 @@
 /minimd.egg-info
 /minimd/__pycache__
+/minimd/backends/__pycache__
+
+# Compiled backend artifacts (f2py .so, pybind11 .so, object files, etc.)
+minimd/backends/fortran/*.so
+minimd/backends/fortran/*.o
+minimd/backends/fortran/*.mod
+minimd/backends/cpp_openmp/*.so
+minimd/backends/cpp_openmp/*.o
+minimd/backends/cpp_mpi/*.so
+minimd/backends/cpp_mpi/*.o
+minimd/backends/cuda/*.so
+minimd/backends/cuda/*.o

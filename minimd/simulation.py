@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 import numpy as np
@@ -9,7 +10,7 @@ import numpy as np
 from minimd.config import Config
 from minimd.integrator import svr_thermostat, velocity_verlet_step
 from minimd.interfaces import ForceEvaluator, NeighborList
-from minimd.io import read_xyz, write_log_header, write_log_line, write_xyz_frame
+from minimd.io import make_supercell, read_xyz, write_log_header, write_log_line, write_log_timing, write_xyz_frame
 from minimd.state import SimState
 
 
@@ -19,9 +20,17 @@ def _get_backend(name: str) -> tuple[NeighborList, ForceEvaluator]:
         from minimd.backends.numpy_backend import NumpyLJForces, NumpyNeighborList
 
         return NumpyNeighborList(), NumpyLJForces()
+    if name == "python":
+        from minimd.backends.python_backend import PythonLJForces, PythonNeighborList
+
+        return PythonNeighborList(), PythonLJForces()
+    if name == "fortran":
+        from minimd.backends.fortran import FortranLJForces, FortranNeighborList
+
+        return FortranNeighborList(), FortranLJForces()
     raise ValueError(
-        f"Unknown backend '{name}'. Available: numpy "
-        f"(stubs: torch, fortran, cpp_openmp, cpp_mpi, cuda)"
+        f"Unknown backend '{name}'. Available: numpy, python, fortran"
+        f"(stubs: torch, cpp_openmp, cpp_mpi, cuda)"
     )
 
 
@@ -31,12 +40,20 @@ def run(config: Config) -> None:
 
     # --- initialise state ---
     state = read_xyz(config.xyz_file, box, config.temperature)
+
+    # --- apply supercell replication ---
+    nx, ny, nz = config.supercell
+    if nx > 1 or ny > 1 or nz > 1:
+        state = make_supercell(state, nx, ny, nz)
+        box = state.box  # update box to match supercell
+
     nlist, force_eval = _get_backend(config.backend)
 
     # --- initial force evaluation ---
     nlist.build(state.positions, box, config.r_cut, config.r_skin)
     state.forces, pe = force_eval.compute(
-        state.positions, box, nlist.pairs_i, nlist.pairs_j, config.r_cut
+        state.positions, box, nlist.pairs_i, nlist.pairs_j, config.r_cut,
+        config.sigma, config.epsilon,
     )
 
     rng = np.random.default_rng()
@@ -53,6 +70,7 @@ def run(config: Config) -> None:
         _log_and_traj(f_log, f_traj, state, 0, pe, config)
 
         # --- main loop ---
+        t_start = time.perf_counter()
         for step in range(1, config.n_steps + 1):
             pe = velocity_verlet_step(state, config, nlist, force_eval)
 
@@ -61,6 +79,11 @@ def run(config: Config) -> None:
 
             if step % config.log_every == 0 or step == config.n_steps:
                 _log_and_traj(f_log, f_traj, state, step, pe, config)
+        t_end = time.perf_counter()
+
+        total_time = t_end - t_start
+        avg_step_time = total_time / config.n_steps
+        write_log_timing(f_log, total_time, avg_step_time)
 
 
 def _log_and_traj(

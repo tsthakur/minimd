@@ -38,7 +38,8 @@ def velocity_verlet_step(
 
     # --- new forces ---
     state.forces, pe = forces.compute(
-        state.positions, box, nlist.pairs_i, nlist.pairs_j, config.r_cut
+        state.positions, box, nlist.pairs_i, nlist.pairs_j, config.r_cut,
+        config.sigma, config.epsilon,
     )
 
     # --- half-kick ---
