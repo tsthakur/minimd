@@ -21,11 +21,12 @@ from minimd.state import SimState
 
 # ---------- XYZ reading ----------
 
-def read_xyz(path: str | Path, box: np.ndarray, temperature: float) -> SimState:
+def read_xyz(path: str | Path, box: np.ndarray, temperature: float, seed: int | None = None) -> SimState:
     """Read an XYZ file and return a SimState.
 
     If velocities are not present in the file, they are drawn from a
     Maxwell-Boltzmann distribution at *temperature* (LJ units, kB=1).
+    If *seed* is provided, velocities will be deterministic for that seed.
     """
     lines = Path(path).read_text().strip().splitlines()
     n_atoms = int(lines[0])
@@ -48,7 +49,7 @@ def read_xyz(path: str | Path, box: np.ndarray, temperature: float) -> SimState:
     masses = np.ones(n_atoms, dtype=np.float64)  # all mass = 1
 
     if velocities is None:
-        velocities = _maxwell_boltzmann(n_atoms, masses, temperature)
+        velocities = _maxwell_boltzmann(n_atoms, masses, temperature, seed)
 
     state = SimState(
         symbols=symbols,
@@ -66,9 +67,13 @@ def _maxwell_boltzmann(
     n: int,
     masses: np.ndarray,
     temperature: float,
+    seed: int | None = None,
 ) -> np.ndarray:
-    """Draw velocities from Maxwell-Boltzmann at given temperature (kB=1)."""
-    rng = np.random.default_rng()
+    """Draw velocities from Maxwell-Boltzmann at given temperature (kB=1).
+    
+    If *seed* is provided, velocities will be deterministic.
+    """
+    rng = np.random.default_rng(seed)
     sigma = np.sqrt(temperature / masses)  # (N,)
     return rng.standard_normal((n, 3)) * sigma[:, None]
 
@@ -80,12 +85,14 @@ def make_supercell(
     nx: int,
     ny: int,
     nz: int,
+    seed: int | None = None,
 ) -> SimState:
     """Replicate *state* by (nx, ny, nz) to build a supercell.
 
     Positions are tiled along each axis and the box is scaled accordingly.
-    Velocities are tiled (each replica gets the same initial velocities).
+    Velocities are re-initialised from Maxwell-Boltzmann distribution.
     Returns a new SimState; the original is not modified.
+    If `seed` is provided, velocities will be deterministic.
     """
     if nx == 1 and ny == 1 and nz == 1:
         return state  # nothing to do
@@ -109,8 +116,8 @@ def make_supercell(
 
     new_box = box * np.array([nx, ny, nz], dtype=np.float64)
     new_masses = np.tile(state.masses, nx * ny * nz)
-    """When creating a supercell, provided original velcoties are not meaningful"""
-    new_velocities = _maxwell_boltzmann(n_total, new_masses, state.temperature)
+    # When creating a supercell, original velocities are not meaningful
+    new_velocities = _maxwell_boltzmann(n_total, new_masses, state.temperature, seed)
 
     return SimState(
         symbols=new_symbols,

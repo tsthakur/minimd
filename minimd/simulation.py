@@ -43,14 +43,15 @@ def _get_backend(name: str) -> tuple[NeighborList, ForceEvaluator]:
 def run(config: Config) -> None:
     """Run the full MD simulation described by *config*."""
     box = np.array(config.box, dtype=np.float64)
+    seed = config.seed
 
     # --- initialise state ---
-    state = read_xyz(config.input_file, box, config.temperature)
+    state = read_xyz(config.input_file, box, config.temperature, seed)
 
     # --- apply supercell replication ---
     nx, ny, nz = config.supercell
     if nx > 1 or ny > 1 or nz > 1:
-        state = make_supercell(state, nx, ny, nz)
+        state = make_supercell(state, nx, ny, nz, seed)
         box = state.box  # update box to match supercell
 
     nlist, force_eval = _get_backend(config.backend)
@@ -62,7 +63,7 @@ def run(config: Config) -> None:
         config.sigma, config.epsilon,
     )
 
-    rng = np.random.default_rng()
+    rng = np.random.default_rng(seed*2)
 
     # --- output files ---
     if config.output_file:

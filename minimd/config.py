@@ -37,6 +37,9 @@ class Config:
     epsilon: float = 1.0        # LJ well depth
     sigma: float = 1.0          # LJ size parameter
 
+    # --- random seed ---
+    seed: float = 1
+
     # --- box ---
     box: tuple[float, float, float] = (10.0, 10.0, 10.0)
 

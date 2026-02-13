@@ -14,8 +14,9 @@ minimd examples/nve.yaml
 ```
 
 The main draw of this code is that there are backends to test out various implementations for building neighbour list and force evaluation as these are the most computationally intensive part of any MD code. Currently supported:
-* python with base python functions
-* python with numpy
-* fortran 
+* Python with base Python functions
+* Python with NumPy
+* Fortran 
+* C++ with openMP
 
 The dynamics is always done on python.

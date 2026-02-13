@@ -7,18 +7,18 @@
 
 namespace py = pybind11;
 
-bool check_rebuild(const py::array_t<float>& positions, 
-    const py::array_t<float>& _last_positions, float r_skin) {
+bool check_rebuild(const py::array_t<double>& positions, 
+    const py::array_t<double>& _last_positions, double r_skin) {
     auto pos = positions.unchecked<2>();
     auto last_pos = _last_positions.unchecked<2>();
     
     for (ssize_t i = 0; i < pos.shape(0); ++i) {
-        float dx = pos(i, 0) - last_pos(i, 0);
-        float dy = pos(i, 1) - last_pos(i, 1);
-        float dz = pos(i, 2) - last_pos(i, 2);
-        float dist_sq = dx*dx + dy*dy + dz*dz;
+        double dx = pos(i, 0) - last_pos(i, 0);
+        double dy = pos(i, 1) - last_pos(i, 1);
+        double dz = pos(i, 2) - last_pos(i, 2);
+        double dist_sq = dx*dx + dy*dy + dz*dz;
 
-        float half_skin = r_skin / 2;
+        double half_skin = r_skin / 2;
         if (dist_sq > half_skin * half_skin) {
             return true;
         }
@@ -26,30 +26,30 @@ bool check_rebuild(const py::array_t<float>& positions,
     return false;
 }
 
-std::tuple<py::array_t<float>, py::array_t<float>> 
-    build_neighbour_list(const py::array_t<float>& positions, 
-        const py::array_t<float>& box, float r_cut, float r_skin) {
+std::tuple<py::array_t<double>, py::array_t<double>> 
+    build_neighbour_list(const py::array_t<double>& positions, 
+        const py::array_t<double>& box, double r_cut, double r_skin) {
             auto pos = positions.unchecked<2>();
             auto box_u = box.unchecked<1>();
             ssize_t n_particles = pos.shape(0);
             std::vector<int> pair_i_vec;
             std::vector<int> pair_j_vec;
 
-            float r_list = r_cut + r_skin;
-            float r_list_sq = r_list * r_list;
+            double r_list = r_cut + r_skin;
+            double r_list_sq = r_list * r_list;
 
             for (ssize_t i = 0; i < n_particles; ++i) {
                 for (ssize_t j = i + 1; j < n_particles; ++j) {
 
-                    float dx = pos(i, 0) - pos(j, 0);
-                    float dy = pos(i, 1) - pos(j, 1);
-                    float dz = pos(i, 2) - pos(j, 2);
+                    double dx = pos(i, 0) - pos(j, 0);
+                    double dy = pos(i, 1) - pos(j, 1);
+                    double dz = pos(i, 2) - pos(j, 2);
 
                     dx -= box_u(0) * std::round(dx / box_u(0));
                     dy -= box_u(1) * std::round(dy / box_u(1));
                     dz -= box_u(2) * std::round(dz / box_u(2));
 
-                    float dist_sq = dx*dx + dy*dy + dz*dz;
+                    double dist_sq = dx*dx + dy*dy + dz*dz;
 
                     if (dist_sq < r_list_sq) {
                         pair_i_vec.push_back(i);
@@ -62,10 +62,10 @@ std::tuple<py::array_t<float>, py::array_t<float>>
             return std::make_tuple(pair_i, pair_j);
 }
 
-std::tuple<py::array_t<float>, float> 
-    compute_forces(const py::array_t<float>& positions, 
-        const py::array_t<float>& box, const py::array_t<int>& pair_i, 
-        const py::array_t<int>& pair_j, float r_cut, float sigma, float epsilon) {
+std::tuple<py::array_t<double>, double> 
+    compute_forces(const py::array_t<double>& positions, 
+        const py::array_t<double>& box, const py::array_t<int>& pair_i, 
+        const py::array_t<int>& pair_j, double r_cut, double sigma, double epsilon) {
             auto pos = positions.unchecked<2>();
             auto pi = pair_i.unchecked<1>();
             auto pj = pair_j.unchecked<1>();
@@ -74,50 +74,50 @@ std::tuple<py::array_t<float>, float>
             ssize_t n_pairs = pi.shape(0);
             std::vector<ssize_t> shape = {n_particles, 3};
 
-            py::array_t<float> forces_np(shape);
-            std::memset(forces_np.mutable_data(), 0, n_particles * 3 * sizeof(float));
+            py::array_t<double> forces_np(shape);
+            std::memset(forces_np.mutable_data(), 0, n_particles * 3 * sizeof(double));
             auto forces = forces_np.mutable_unchecked<2>();
 
-            float r_cut_sq = r_cut * r_cut;
-            float sigma_sq = sigma * sigma;
+            double r_cut_sq = r_cut * r_cut;
+            double sigma_sq = sigma * sigma;
 
-            float inv_rc2 = sigma_sq / r_cut_sq;
-            float inv_rc6 = inv_rc2 * inv_rc2 * inv_rc2;
-            float inv_rc12 = inv_rc6 * inv_rc6;
-            float v_shift = 4.0 * (inv_rc12 - inv_rc6);
+            double inv_rc2 = sigma_sq / r_cut_sq;
+            double inv_rc6 = inv_rc2 * inv_rc2 * inv_rc2;
+            double inv_rc12 = inv_rc6 * inv_rc6;
+            double v_shift = 4.0 * (inv_rc12 - inv_rc6);
 
-            float energy = 0.0;
+            double energy = 0.0;
 
             for (ssize_t k = 0; k < n_pairs; k++) {
                 int i = pi(k);
                 int j = pj(k);
 
-                float dx = pos(j, 0) - pos(i, 0);
-                float dy = pos(j, 1) - pos(i, 1);
-                float dz = pos(j, 2) - pos(i, 2);
+                double dx = pos(j, 0) - pos(i, 0);
+                double dy = pos(j, 1) - pos(i, 1);
+                double dz = pos(j, 2) - pos(i, 2);
 
                 dx -= box_u(0) * std::round(dx / box_u(0));
                 dy -= box_u(1) * std::round(dy / box_u(1));
                 dz -= box_u(2) * std::round(dz / box_u(2));
 
 
-                float dist_sq = dx * dx + dy * dy + dz * dz;
+                double dist_sq = dx * dx + dy * dy + dz * dz;
 
             if (dist_sq <= 0.0 || dist_sq >= r_cut_sq) {
                 continue;
             }
 
-            float inv_r2 = sigma_sq / dist_sq;
-            float inv_r6 = inv_r2 * inv_r2 * inv_r2;
-            float inv_r12 = inv_r6 * inv_r6;
+            double inv_r2 = sigma_sq / dist_sq;
+            double inv_r6 = inv_r2 * inv_r2 * inv_r2;
+            double inv_r12 = inv_r6 * inv_r6;
 
             energy += epsilon * (4.0 * (inv_r12 - inv_r6) - v_shift);
 
-            float f_over_r = epsilon * 24.0 * (2.0 * inv_r12 - inv_r6) / dist_sq;
+            double f_over_r = epsilon * 24.0 * (2.0 * inv_r12 - inv_r6) / dist_sq;
 
-            float fx = f_over_r * dx;
-            float fy = f_over_r * dy;
-            float fz = f_over_r * dz;
+            double fx = f_over_r * dx;
+            double fy = f_over_r * dy;
+            double fz = f_over_r * dz;
 
             forces(j, 0) += fx;
             forces(j, 1) += fy;
