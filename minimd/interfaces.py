@@ -1,6 +1,6 @@
 """Abstract interfaces for the two pluggable subsystems.
 
-Only neighbor-list building and force evaluation are designed as
+Only neighbour-list building and force evaluation are designed as
 swappable backends. Everything else is hardcoded.
 """
 
@@ -13,7 +13,7 @@ from numpy.typing import NDArray
 
 
 class NeighborList(ABC):
-    """Build and cache a pair neighbor list under PBC."""
+    """Build and cache a pair neighbour list under PBC."""
 
     pairs_i: NDArray[np.intp]  # cached i-indices from last build
     pairs_j: NDArray[np.intp]  # cached j-indices from last build
@@ -60,7 +60,7 @@ class ForceEvaluator(ABC):
         Args:
             positions: (N, 3) array.
             box: (3,) orthorhombic box lengths.
-            pairs_i, pairs_j: neighbor pair indices from NeighborList.
+            pairs_i, pairs_j: neighbour pair indices from NeighborList.
             r_cut: cutoff radius (potential is shifted to zero at r_cut).
             sigma: LJ size parameter.
             epsilon: LJ well depth.

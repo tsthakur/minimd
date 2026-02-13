@@ -1,4 +1,4 @@
-"""Fortran backend for neighbor list and LJ forces via f2py.
+"""Fortran backend for neighbour list and LJ forces via f2py.
 
 Compile the Fortran extension first:
     cd minimd/backends/fortran && python -m numpy.f2py -c -m _lj_fortran lj_fortran.f90
@@ -46,7 +46,7 @@ class FortranNeighborList(NeighborList):
         pos = np.asfortranarray(positions, dtype=np.float64)
         bx = np.asarray(box, dtype=np.float64)
 
-        pairs_i, pairs_j, n_pairs = _lj_fortran.build_neighbor_list(
+        pairs_i, pairs_j, n_pairs = _lj_fortran.build_neighbour_list(
             pos, bx, r_cut, r_skin, max_pairs,
         )
         self.pairs_i = np.asarray(pairs_i[:n_pairs], dtype=np.intp)

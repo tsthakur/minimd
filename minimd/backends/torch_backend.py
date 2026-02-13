@@ -1,4 +1,4 @@
-"""PyTorch backend stubs for neighbor list and LJ forces.
+"""PyTorch backend stubs for neighbour list and LJ forces.
 
 TODO: implement using torch. Tensor for GPU-accelerated MD.
 """
@@ -37,5 +37,7 @@ class TorchLJForces(ForceEvaluator):
         pairs_i: NDArray[np.intp],
         pairs_j: NDArray[np.intp],
         r_cut: float,
+        sigma: float = 1.0,
+        epsilon: float = 1.0,
     ) -> tuple[NDArray[np.floating], float]:
         raise NotImplementedError("TorchLJForces not yet implemented")

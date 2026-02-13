@@ -1,4 +1,4 @@
-"""Pure-Python implementations of neighbor list and LJ forces.
+"""Pure-Python implementations of neighbour list and LJ forces.
 
 All inner loops use plain Python arithmetic and the math module.
 numpy is only used for array allocation and to satisfy the interface
@@ -16,7 +16,7 @@ from minimd.interfaces import ForceEvaluator, NeighborList
 
 
 class PythonNeighborList(NeighborList):
-    """Verlet neighbor list with skin, built via brute-force O(N^2) scan.
+    """Verlet neighbour list with skin, built via brute-force O(N^2) scan.
 
     Pure-Python version: loops over all unique pairs in plain Python.
     """
@@ -155,7 +155,6 @@ class PythonLJForces(ForceEvaluator):
             fy = f_over_r * dy
             fz = f_over_r * dz
 
-            # Newton's third law
             forces[j, 0] += fx
             forces[j, 1] += fy
             forces[j, 2] += fz

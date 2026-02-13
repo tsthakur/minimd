@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 
+from minimd.backends.cpp_openmp.backend import CppOpenMPLJForces, CppOpenMPNeighborList
 from minimd.config import Config
 from minimd.integrator import svr_thermostat, velocity_verlet_step
 from minimd.interfaces import ForceEvaluator, NeighborList
@@ -15,7 +16,7 @@ from minimd.state import SimState
 
 
 def _get_backend(name: str) -> tuple[NeighborList, ForceEvaluator]:
-    """Instantiate neighbor list and force evaluator by backend name."""
+    """Instantiate neighbour list and force evaluator by backend name."""
     if name == "numpy":
         from minimd.backends.numpy_backend import NumpyLJForces, NumpyNeighborList
 
@@ -28,9 +29,14 @@ def _get_backend(name: str) -> tuple[NeighborList, ForceEvaluator]:
         from minimd.backends.fortran import FortranLJForces, FortranNeighborList
 
         return FortranNeighborList(), FortranLJForces()
+    
+    if name == "cpp_openmp":
+        from minimd.backends.fortran import FortranLJForces, FortranNeighborList
+
+        return CppOpenMPNeighborList(), CppOpenMPLJForces()
     raise ValueError(
-        f"Unknown backend '{name}'. Available: numpy, python, fortran"
-        f"(stubs: torch, cpp_openmp, cpp_mpi, cuda)"
+        f"Unknown backend '{name}'. Available: numpy, python, fortran, cpp_openmp"
+        f"(stubs: torch, cpp_mpi, cuda)"
     )
 
 
@@ -39,7 +45,7 @@ def run(config: Config) -> None:
     box = np.array(config.box, dtype=np.float64)
 
     # --- initialise state ---
-    state = read_xyz(config.xyz_file, box, config.temperature)
+    state = read_xyz(config.input_file, box, config.temperature)
 
     # --- apply supercell replication ---
     nx, ny, nz = config.supercell
@@ -59,7 +65,11 @@ def run(config: Config) -> None:
     rng = np.random.default_rng()
 
     # --- output files ---
-    stem = Path(config.xyz_file).stem
+    if config.output_file:
+        stem = config.output_file
+    else:
+        stem = Path(config.input_file).stem
+
     traj_path = f"{stem}_traj.xyz"
     log_path = f"{stem}.log"
 
@@ -67,7 +77,7 @@ def run(config: Config) -> None:
         write_log_header(f_log)
 
         # --- log step 0 ---
-        _log_and_traj(f_log, f_traj, state, 0, pe, config)
+        write_log_line(f_log, 0, pe, state.kinetic_energy, state.temperature)
 
         # --- main loop ---
         t_start = time.perf_counter()
@@ -78,21 +88,14 @@ def run(config: Config) -> None:
                 svr_thermostat(state, config.temperature, config.tau, config.dt, rng)
 
             if step % config.log_every == 0 or step == config.n_steps:
-                _log_and_traj(f_log, f_traj, state, step, pe, config)
+                write_log_line(f_log, step, pe, state.kinetic_energy, state.temperature)
+                f_log.flush()
+            if step % config.traj_every == 0 or step == config.n_steps:
+                write_xyz_frame(f_traj, state, step, pe)
+                f_traj.flush()
         t_end = time.perf_counter()
 
         total_time = t_end - t_start
         avg_step_time = total_time / config.n_steps
         write_log_timing(f_log, total_time, avg_step_time)
 
-
-def _log_and_traj(
-    f_log, f_traj, state: SimState, step: int, pe: float, config: Config
-) -> None:
-    """Write log line and (optionally) trajectory frame."""
-    ke = state.kinetic_energy
-    write_log_line(f_log, step, pe, ke, state.temperature)
-    f_log.flush()
-    if step % config.traj_every == 0 or step == 0:
-        write_xyz_frame(f_traj, state, step, pe)
-        f_traj.flush()

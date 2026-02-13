@@ -17,7 +17,8 @@ class Config:
     """
 
     # --- files ---
-    xyz_file: str
+    input_file: str
+    output_file: str 
 
     # --- ensemble ---
     ensemble: str = "nvt"       # "nve" or "nvt"

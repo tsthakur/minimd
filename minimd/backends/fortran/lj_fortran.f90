@@ -1,7 +1,7 @@
-! Fortran implementations of neighbor list and LJ force computation.
+! Fortran implementations of neighbour list and LJ force computation.
 ! Compile: cd minimd/backends/fortran && python -m numpy.f2py -c -m _lj_fortran lj_fortran.f90
 
-subroutine build_neighbor_list(positions, box, r_cut, r_skin, &
+subroutine build_neighbour_list(positions, box, r_cut, r_skin, &
                                 n_atoms, max_pairs, &
                                 pairs_i, pairs_j, n_pairs)
     implicit none

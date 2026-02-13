@@ -39,7 +39,7 @@ def read_xyz(path: str | Path, box: np.ndarray, temperature: float) -> SimState:
         parts = line.split()
         symbols.append(parts[0])
         positions[i] = [float(parts[1]), float(parts[2]), float(parts[3])]
-        if len(parts) >= 7 and i == 0:
+        if len(parts) > 4 and i == 0:
             has_velocities = True
             velocities = np.zeros((n_atoms, 3), dtype=np.float64)
         if has_velocities and velocities is not None:
@@ -158,6 +158,5 @@ def write_log_line(f: TextIO, step: int, pe: float, ke: float, temp: float) -> N
 
 def write_log_timing(f: TextIO, total_time: float, avg_step_time: float) -> None:
     """Write timing summary at the end of the log file."""
-    f.write(f"\n# Timing\n")
     f.write(f"# Total wall time:     {total_time:.3f} s\n")
     f.write(f"# Avg time per step:   {avg_step_time:.6f} s\n")

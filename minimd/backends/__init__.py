@@ -1,1 +1,1 @@
-"""Backend implementations for neighbor lists and force evaluation."""
+"""Backend implementations for neighbour lists and force evaluation."""

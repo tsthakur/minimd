@@ -1,4 +1,4 @@
-"""NumPy implementations of neighbor list and LJ forces."""
+"""NumPy implementations of neighbour list and LJ forces."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from minimd.interfaces import ForceEvaluator, NeighborList
 
 
 class NumpyNeighborList(NeighborList):
-    """Verlet neighbor list with skin, built via brute-force O(N^2) scan."""
+    """Verlet neighbour list with skin, built via brute-force O(N^2) scan."""
 
     def __init__(self) -> None:
         self._last_positions: NDArray[np.floating] | None = None
@@ -101,7 +101,6 @@ class NumpyLJForces(ForceEvaluator):
         f_over_r = epsilon * 24.0 * (2.0 * inv_r12 - inv_r6) / dist_sq
         fij = f_over_r[:, None] * dr  # (n_pairs, 3)
 
-        # Newton's third law: F_on_j = +fij, F_on_i = -fij
         np.add.at(forces, pj, fij)
         np.add.at(forces, pi, -fij)
 

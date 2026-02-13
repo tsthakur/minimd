@@ -32,7 +32,7 @@ def velocity_verlet_step(
     state.positions += dt * state.velocities
     state.wrap_positions()
 
-    # --- rebuild neighbor list if needed ---
+    # --- rebuild neighbour list if needed ---
     if nlist.needs_rebuild(state.positions, config.r_skin):
         nlist.build(state.positions, box, config.r_cut, config.r_skin)
 
