@@ -1,8 +1,11 @@
 A minimalist molecular dynamics (MD) code in Python. It simulates Lennard-Jones particles under periodic boundary conditions using velocity Verlet integration, with optional stochastic velocity rescaling (SVR) thermostat for NVT ensemble. All quantities are in LJ reduced units (mass = kB = 1).
 
 ```bash
-# Install (editable)
+# Install in editable mode
 pip install -e .
+
+# Compile fortran shared library manually by:
+cd minimd/backends/fortran && python -m numpy.f2py -c -m _lj_fortran lj_fortran.f90
 
 # Run a simulation (takes a YAML config file)
 python -m minimd examples/nve.yaml
