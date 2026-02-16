@@ -4,6 +4,7 @@
 #include <tuple>
 #include <vector>
 #include <cstring>
+#include <omp.h>
 
 namespace py = pybind11;
 
@@ -11,7 +12,9 @@ bool check_rebuild(const py::array_t<double>& positions,
     const py::array_t<double>& _last_positions, double r_skin) {
     auto pos = positions.unchecked<2>();
     auto last_pos = _last_positions.unchecked<2>();
-    
+    bool needs_rebuild = false;
+
+    #pragma omp parallel for schedule(static)
     for (ssize_t i = 0; i < pos.shape(0); ++i) {
         double dx = pos(i, 0) - last_pos(i, 0);
         double dy = pos(i, 1) - last_pos(i, 1);
@@ -20,10 +23,10 @@ bool check_rebuild(const py::array_t<double>& positions,
 
         double half_skin = r_skin / 2;
         if (dist_sq > half_skin * half_skin) {
-            return true;
+            needs_rebuild = true;
         }
     }
-    return false;
+    return needs_rebuild;
 }
 
 std::tuple<py::array_t<double>, py::array_t<double>> 
@@ -32,29 +35,39 @@ std::tuple<py::array_t<double>, py::array_t<double>>
             auto pos = positions.unchecked<2>();
             auto box_u = box.unchecked<1>();
             ssize_t n_particles = pos.shape(0);
-            std::vector<int> pair_i_vec;
-            std::vector<int> pair_j_vec;
-
+            
             double r_list = r_cut + r_skin;
             double r_list_sq = r_list * r_list;
+            std::vector<int> pair_i_vec;
+            std::vector<int> pair_j_vec;
+            
+            #pragma omp parallel
+            {   
+                std::vector<int> local_pair_i, local_pair_j;
+                #pragma omp for schedule(dynamic)
+                for (ssize_t i = 0; i < n_particles; ++i) {
+                    for (ssize_t j = i + 1; j < n_particles; ++j) {
 
-            for (ssize_t i = 0; i < n_particles; ++i) {
-                for (ssize_t j = i + 1; j < n_particles; ++j) {
+                        double dx = pos(j, 0) - pos(i, 0);
+                        double dy = pos(j, 1) - pos(i, 1);
+                        double dz = pos(j, 2) - pos(i, 2);
 
-                    double dx = pos(i, 0) - pos(j, 0);
-                    double dy = pos(i, 1) - pos(j, 1);
-                    double dz = pos(i, 2) - pos(j, 2);
+                        dx -= box_u(0) * std::round(dx / box_u(0));
+                        dy -= box_u(1) * std::round(dy / box_u(1));
+                        dz -= box_u(2) * std::round(dz / box_u(2));
 
-                    dx -= box_u(0) * std::round(dx / box_u(0));
-                    dy -= box_u(1) * std::round(dy / box_u(1));
-                    dz -= box_u(2) * std::round(dz / box_u(2));
-
-                    double dist_sq = dx*dx + dy*dy + dz*dz;
-
-                    if (dist_sq < r_list_sq) {
-                        pair_i_vec.push_back(i);
-                        pair_j_vec.push_back(j);
+                        double dist_sq = dx*dx + dy*dy + dz*dz;
+                        
+                        if (dist_sq < r_list_sq) {
+                            local_pair_i.push_back(i);
+                            local_pair_j.push_back(j);
+                        }
                     }
+                }
+                #pragma omp critical
+                {
+                    pair_i_vec.insert(pair_i_vec.end(), local_pair_i.begin(), local_pair_i.end());
+                    pair_j_vec.insert(pair_j_vec.end(), local_pair_j.begin(), local_pair_j.end());
                 }
             }
             py::array_t<int> pair_i(pair_i_vec.size(), pair_i_vec.data());
@@ -88,49 +101,66 @@ std::tuple<py::array_t<double>, double>
 
             double energy = 0.0;
 
-            for (ssize_t k = 0; k < n_pairs; k++) {
-                int i = pi(k);
-                int j = pj(k);
+            #pragma omp parallel reduction(+:energy)
+            {
+                std::vector<double> local_f(n_particles * 3, 0.0);
 
-                double dx = pos(j, 0) - pos(i, 0);
-                double dy = pos(j, 1) - pos(i, 1);
-                double dz = pos(j, 2) - pos(i, 2);
+                #pragma omp for
+                for (ssize_t k = 0; k < n_pairs; k++) {
+                    int i = pi(k);
+                    int j = pj(k);
 
-                dx -= box_u(0) * std::round(dx / box_u(0));
-                dy -= box_u(1) * std::round(dy / box_u(1));
-                dz -= box_u(2) * std::round(dz / box_u(2));
+                    double dx = pos(j, 0) - pos(i, 0);
+                    double dy = pos(j, 1) - pos(i, 1);
+                    double dz = pos(j, 2) - pos(i, 2);
 
+                    dx -= box_u(0) * std::round(dx / box_u(0));
+                    dy -= box_u(1) * std::round(dy / box_u(1));
+                    dz -= box_u(2) * std::round(dz / box_u(2));
 
-                double dist_sq = dx * dx + dy * dy + dz * dz;
+                    double dist_sq = dx * dx + dy * dy + dz * dz;
 
-            if (dist_sq <= 0.0 || dist_sq >= r_cut_sq) {
-                continue;
-            }
+                    if (dist_sq <= 0.0 || dist_sq >= r_cut_sq) {
+                        continue;
+                    }
 
-            double inv_r2 = sigma_sq / dist_sq;
-            double inv_r6 = inv_r2 * inv_r2 * inv_r2;
-            double inv_r12 = inv_r6 * inv_r6;
+                    double inv_r2 = sigma_sq / dist_sq;
+                    double inv_r6 = inv_r2 * inv_r2 * inv_r2;
+                    double inv_r12 = inv_r6 * inv_r6;
 
-            energy += epsilon * (4.0 * (inv_r12 - inv_r6) - v_shift);
+                    energy += epsilon * (4.0 * (inv_r12 - inv_r6) - v_shift);
 
-            double f_over_r = epsilon * 24.0 * (2.0 * inv_r12 - inv_r6) / dist_sq;
+                    double f_over_r = epsilon * 24.0 * (2.0 * inv_r12 - inv_r6) / dist_sq;
 
-            double fx = f_over_r * dx;
-            double fy = f_over_r * dy;
-            double fz = f_over_r * dz;
+                    double fx = f_over_r * dx;
+                    double fy = f_over_r * dy;
+                    double fz = f_over_r * dz;
 
-            forces(j, 0) += fx;
-            forces(j, 1) += fy;
-            forces(j, 2) += fz;
-            forces(i, 0) -= fx;
-            forces(i, 1) -= fy;
-            forces(i, 2) -= fz;
+                    local_f[j*3 + 0] += fx;
+                    local_f[j*3 + 1] += fy;
+                    local_f[j*3 + 2] += fz;
+                    local_f[i*3 + 0] -= fx;
+                    local_f[i*3 + 1] -= fy;
+                    local_f[i*3 + 2] -= fz;
+                }
+
+                #pragma omp critical
+                for (ssize_t a = 0; a < n_particles; a++) {
+                    forces(a, 0) += local_f[a*3 + 0];
+                    forces(a, 1) += local_f[a*3 + 1];
+                    forces(a, 2) += local_f[a*3 + 2];
+                }
             }
             return std::make_tuple(forces_np, energy);
         }
+
+void set_num_threads(int n) {
+    omp_set_num_threads(n);
+}
 
 PYBIND11_MODULE(_lj_cpp_openmp, m) {
     m.def("check_rebuild", &check_rebuild, "Check if neighbour list needs to be built");
     m.def("build_neighbour_list", &build_neighbour_list, "Build neighbour list");
     m.def("compute_forces", &compute_forces, "Compute LJ forces");
+    m.def("set_num_threads", &set_num_threads, "Set number of OpenMP threads");
 }

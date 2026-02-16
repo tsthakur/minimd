@@ -31,8 +31,7 @@ def _get_backend(name: str) -> tuple[NeighborList, ForceEvaluator]:
         return FortranNeighborList(), FortranLJForces()
     
     if name == "cpp_openmp":
-        from minimd.backends.fortran import FortranLJForces, FortranNeighborList
-
+        from minimd.backends.cpp_openmp import CppOpenMPLJForces, CppOpenMPNeighborList
         return CppOpenMPNeighborList(), CppOpenMPLJForces()
     raise ValueError(
         f"Unknown backend '{name}'. Available: numpy, python, fortran, cpp_openmp"
@@ -55,6 +54,10 @@ def run(config: Config) -> None:
         box = state.box  # update box to match supercell
 
     nlist, force_eval = _get_backend(config.backend)
+
+    if config.backend == "cpp_openmp":
+        from minimd.backends.cpp_openmp import _lj_cpp_openmp
+        _lj_cpp_openmp.set_num_threads(config.threads)
 
     # --- initial force evaluation ---
     nlist.build(state.positions, box, config.r_cut, config.r_skin)

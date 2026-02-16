@@ -48,6 +48,7 @@ class Config:
 
     # --- backend ---
     backend: str = "numpy"
+    threads: int = 1
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> Config:
