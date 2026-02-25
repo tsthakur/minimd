@@ -18,24 +18,29 @@ def _get_backend(name: str) -> tuple[NeighborList, ForceEvaluator]:
     """Instantiate neighbour list and force evaluator by backend name."""
     if name == "numpy":
         from minimd.backends.numpy_backend import NumpyLJForces, NumpyNeighborList
-
         return NumpyNeighborList(), NumpyLJForces()
+    
     if name == "python":
         from minimd.backends.python_backend import PythonLJForces, PythonNeighborList
-
         return PythonNeighborList(), PythonLJForces()
+    
     if name == "fortran":
         from minimd.backends.fortran import FortranLJForces, FortranNeighborList
-
         return FortranNeighborList(), FortranLJForces()
     
     if name == "cpp_openmp":
         from minimd.backends.cpp_openmp import CppOpenMPLJForces, CppOpenMPNeighborList
         return CppOpenMPNeighborList(), CppOpenMPLJForces()
+    
     if name == "cpp_mpi":
         from minimd.backends.cpp_mpi import CppMPILJForces, CppMPINeighborList
         nlist = CppMPINeighborList()
         return nlist, CppMPILJForces(nlist)
+    
+    if name == "torch":
+        from minimd.backends.torch_backend import TorchLJForces, TorchNeighborList
+        return TorchNeighborList(), TorchLJForces()
+    
     raise ValueError(
         f"Unknown backend '{name}'. Available: numpy, python, fortran, cpp_openmp, cpp_mpi"
         f"(stubs: torch, cuda)"
