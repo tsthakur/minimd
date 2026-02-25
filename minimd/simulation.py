@@ -7,7 +7,6 @@ from pathlib import Path
 
 import numpy as np
 
-from minimd.backends.cpp_openmp.backend import CppOpenMPLJForces, CppOpenMPNeighborList
 from minimd.config import Config
 from minimd.integrator import svr_thermostat, velocity_verlet_step
 from minimd.interfaces import ForceEvaluator, NeighborList
@@ -33,9 +32,13 @@ def _get_backend(name: str) -> tuple[NeighborList, ForceEvaluator]:
     if name == "cpp_openmp":
         from minimd.backends.cpp_openmp import CppOpenMPLJForces, CppOpenMPNeighborList
         return CppOpenMPNeighborList(), CppOpenMPLJForces()
+    if name == "cpp_mpi":
+        from minimd.backends.cpp_mpi import CppMPILJForces, CppMPINeighborList
+        nlist = CppMPINeighborList()
+        return nlist, CppMPILJForces(nlist)
     raise ValueError(
-        f"Unknown backend '{name}'. Available: numpy, python, fortran, cpp_openmp"
-        f"(stubs: torch, cpp_mpi, cuda)"
+        f"Unknown backend '{name}'. Available: numpy, python, fortran, cpp_openmp, cpp_mpi"
+        f"(stubs: torch, cuda)"
     )
 
 
