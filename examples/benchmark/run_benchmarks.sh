@@ -5,19 +5,21 @@ cd "$(dirname "$0")"
 
 N_STEPS=1000
 SUPERCELLS=("1,1,1" "2,2,2" "3,3,3" "4,4,4" "5,5,5")
-BACKENDS=(python numpy fortran cpp_openmp)
+BACKENDS=(cpp_mpi)
+THREADS=(1)
 
 RESULTS_FILE="benchmark_results.csv"
-echo "backend,supercell,time" > "$RESULTS_FILE"
+echo "backend,supercell,threads,time" > "$RESULTS_FILE"
 
 for supercell in "${SUPERCELLS[@]}"; do
     for backend in "${BACKENDS[@]}"; do
-        sc_name=$(echo "$supercell" | cut -d',' -f1)
-        output_name="Ar_nvt_steps${N_STEPS}_sc${sc_name}_${backend}"
-        
-        echo "Running: n_steps=$N_STEPS, supercell=[$supercell], backend=$backend"
-        
-        cat > temp_nvt.yaml << EOF
+        for threads in "${THREADS[@]}"; do
+            sc_name=$(echo "$supercell" | cut -d',' -f1)
+            output_name="Ar_nvt_steps${N_STEPS}_sc${sc_name}_${backend}_t${threads}"
+            
+            echo "Running: n_steps=$N_STEPS, supercell=[$supercell], backend=$backend, threads=$threads"
+            
+            cat > temp_nvt.yaml << EOF
 input_file: Ar.xyz
 output_file: ${output_name}
 
@@ -40,15 +42,17 @@ box: [3.419952, 3.419952, 3.419952]
 supercell: [${supercell}]
 
 backend: ${backend}
+threads: ${threads}
 EOF
-        
-        python -m minimd temp_nvt.yaml
-        
-        time_taken=$(grep "# Total" "${output_name}.log" | awk '{print $5}')
-        echo "${backend},${sc_name},${time_taken}" >> "$RESULTS_FILE"
-        
-        echo "Completed: $output_name (${time_taken}s)"
-        echo "---"
+            
+            python -m minimd temp_nvt.yaml
+            
+            time_taken=$(grep "# Total" "${output_name}.log" | awk '{print $5}')
+            echo "${backend},${sc_name},${threads},${time_taken}" >> "$RESULTS_FILE"
+            
+            echo "Completed: $output_name (${time_taken}s)"
+            echo "---"
+        done
     done
 done
 
