@@ -1,11 +1,11 @@
 [build-system]
-requires = ["setuptools>=68", "pybind11", "numpy>=2.0.0"]
+requires = ["setuptools>=68", "pybind11", "numpy>=2.0.0", "mpi4py"]
 
 [project]
 name = "minimd"
 version = "0.4.0"
 requires-python = ">=3.10"
-dependencies = ["numpy>=2.0.0", "pyyaml", "ninja", "pybind11", "matplotlib"]
+dependencies = ["numpy>=2.0.0", "pyyaml", "ninja", "pybind11", "matplotlib", "mpi4py"]
 
 [project.scripts]
 minimd = "minimd.__main__:main"

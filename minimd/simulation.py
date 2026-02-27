@@ -32,18 +32,23 @@ def _get_backend(name: str) -> tuple[NeighborList, ForceEvaluator]:
         from minimd.backends.cpp_openmp import CppOpenMPLJForces, CppOpenMPNeighborList
         return CppOpenMPNeighborList(), CppOpenMPLJForces()
     
+    if name == "cpp":
+        from minimd.backends.cpp_mpi import CppLJForces, CppNeighborList
+        nlist = CppNeighborList()
+        return nlist, CppLJForces(nlist)
+
     if name == "cpp_mpi":
         from minimd.backends.cpp_mpi import CppMPILJForces, CppMPINeighborList
         nlist = CppMPINeighborList()
         return nlist, CppMPILJForces(nlist)
-    
+
     if name == "torch":
         from minimd.backends.torch_backend import TorchLJForces, TorchNeighborList
         return TorchNeighborList(), TorchLJForces()
     
     raise ValueError(
-        f"Unknown backend '{name}'. Available: numpy, python, fortran, cpp_openmp, cpp_mpi"
-        f"(stubs: torch, cuda)"
+        f"Unknown backend '{name}'. Available: numpy, python, fortran, cpp_openmp, torch, cpp, cpp_mpi"
+        f"(stubs: cuda)"
     )
 
 
@@ -62,6 +67,12 @@ def run(config: Config) -> None:
         box = state.box  # update box to match supercell
 
     nlist, force_eval = _get_backend(config.backend)
+
+    # For MPI backend, only rank 0 may write output; other ranks write to /dev/null.
+    io_rank = True
+    if config.backend == "cpp_mpi":
+        from mpi4py import MPI
+        io_rank = (MPI.COMM_WORLD.Get_rank() == 0)
 
     if config.backend == "cpp_openmp":
         from minimd.backends.cpp_openmp import _lj_cpp_openmp
@@ -85,7 +96,9 @@ def run(config: Config) -> None:
     traj_path = f"{stem}_traj.xyz"
     log_path = f"{stem}.log"
 
-    with open(traj_path, "w") as f_traj, open(log_path, "w") as f_log:
+    null = "/dev/null"
+    with open(traj_path if io_rank else null, "w") as f_traj, \
+         open(log_path  if io_rank else null, "w") as f_log:
         write_log_header(f_log)
 
         # --- log step 0 ---
