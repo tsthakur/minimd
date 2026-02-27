@@ -7,15 +7,18 @@ temperature: 1.2    # only used for initial velocity generation
 dt: 0.001
 n_steps: 1000
 log_every: 100
-traj_every: 100
+traj_every: 1000
 
-r_cut: 2.5
+r_cut: 1.5
 r_skin: 0.3
 
 sigma: 0.9
 epsilon: 0.6
 
-box: [3.419952, 3.419952, 3.419952]
-supercell: [2, 2, 2]
+seed: 42
 
-backend: cpp_openmp
+box: [3.764144, 3.764144, 3.764144]
+supercell: [1, 1, 1]
+
+backend: cpp_mpi # available options python, numpy, torch, fortran, cpp, cpp_openmp, cpp_mpi
+threads: 4

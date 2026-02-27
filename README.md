@@ -11,12 +11,17 @@ cd minimd/backends/fortran && python -m numpy.f2py -c -m _lj_fortran lj_fortran.
 python -m minimd examples/nve.yaml
 # or equivalently:
 minimd examples/nve.yaml
+# For MPI
+mpirun -np 2 minimd examples/nve.yaml
 ```
 
 The main draw of this code is that there are backends to test out various implementations for building neighbour list and force evaluation as these are the most computationally intensive part of any MD code. Currently supported:
 * Python with base Python functions
 * Python with NumPy
 * Fortran 
+* Python with PyTorch (both cpu and CUDA versions)
 * C++ with openMP
+* C++ serial
+* C++ MPI
 
 The dynamics is always done on python.
